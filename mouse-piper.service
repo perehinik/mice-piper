@@ -1,0 +1,13 @@
+[Unit]
+Description=Mouse Piper Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/mouse-piper
+Restart=on-failure
+User=root
+WorkingDirectory=/lib/mouse-piper
+
+[Install]
+WantedBy=multi-user.target

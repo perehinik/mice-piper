@@ -1,0 +1,4 @@
+#!/bin/bash
+APP_DIR="/lib/mouse-piper"
+cd ./build/mp-lib || cd "$APP_DIR" || exit 1
+exec python3 mouse-piper.py "$@"
