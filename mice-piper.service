@@ -1,13 +1,13 @@
 [Unit]
-Description=Mouse Piper Service
+Description=Mice Piper Service
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/mouse-piper
+ExecStart=/usr/bin/mice-piper
 Restart=on-failure
 User=root
-WorkingDirectory=/lib/mouse-piper
+WorkingDirectory=/lib/mice-piper
 
 [Install]
 WantedBy=multi-user.target

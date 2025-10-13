@@ -10,5 +10,5 @@ After installing the app it runs in the background.
 You can assign functions by running:
 
 ```bash
-mouse-piper --configure
+mice-piper --configure
 ```

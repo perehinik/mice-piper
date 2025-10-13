@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+SERVICE="mice-piper.service"
+
+echo "[mice-piper] Stopping Mice Piper before removal..."
+
+# Only try if systemctl exists (e.g., not in chroot)
+if command -v systemctl >/dev/null 2>&1; then
+    if systemctl is-active --quiet "$SERVICE"; then
+        systemctl stop "$SERVICE" || true
+    fi
+    if systemctl is-enabled --quiet "$SERVICE"; then
+        systemctl disable "$SERVICE" || true
+    fi
+fi

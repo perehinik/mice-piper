@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+
+echo "[mice-piper] Running post-install steps..."
+
+mkdir -p "/etc/mice-piper"
+# Reload and enable service
+systemctl daemon-reload || true
+systemctl enable mice-piper.service || true
+systemctl restart mice-piper.service || true
+
+echo "[mice-piper] Service enabled and started."
+
+echo "[mice-piper] Mice Piper installed."
+
+# Check if running interactively
+if [ -t 0 ]; then
+    echo
+    read -p "Would you like to configure Mouse Piper now? [Y/n] " answer
+    answer=${answer:-Y}
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        mice-piper -c
+    else
+        echo "You can run 'mice-piper -c' later."
+    fi
+else
+    echo "Non-interactive install detected. Skipping configuration."
+fi

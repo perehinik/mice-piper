@@ -2,3 +2,4 @@
 build/
 mp-lib/
 DEBIAN/
+__pycache__/

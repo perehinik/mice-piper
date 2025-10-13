@@ -1,17 +1,18 @@
 #!/bin/bash
-APP_DIR="/lib/mouse-piper"
+APP_DIR="/lib/mice-piper"
+SCRIPT_NAME="mice-piper.py"
 
 # Get the absolute path of the directory containing this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "$SCRIPT_DIR"
 
 # Path to the file you want to check
-TARGET_FILE="$SCRIPT_DIR/mouse-piper.py"
+TARGET_FILE="$SCRIPT_DIR/$SCRIPT_NAME"
 
 # Check if it exists
 if [ ! -f "$TARGET_FILE" ]; then
     cd "$APP_DIR" || /bin/true
-    exec python3 "$APP_DIR/mouse-piper.py" "$@"
+    exec python3 "$APP_DIR/$SCRIPT_NAME" "$@"
 else
-  exec python3 ./mouse-piper.py "$@"
+  exec python3 "./$SCRIPT_NAME" "$@"
 fi
