@@ -6,6 +6,7 @@ import os
 import time
 from contextlib import suppress
 from typing import Optional, Dict
+import subprocess
 
 from evdev import ecodes
 
@@ -18,7 +19,7 @@ class MicePiper:
     config_name = "config.json"
     def __init__(self, config_mode: bool = False) -> None:
         # {<device_name>: {<button_id> : <action>}}
-        self.action_map: Dict[str, Dict[int, str]] = {}
+        self.action_map: Dict[str, Dict[str, str]] = {}
         self.config_mode = config_mode
         self.running = True
 
@@ -32,7 +33,17 @@ class MicePiper:
         self.keyboard = PiperKeyboard(self.on_k_action)
 
         if self.config_mode:
+            self.set_service_state(False)
             self.configure()
+            self.set_service_state(True)
+
+    @staticmethod
+    def set_service_state(state: bool) -> None:
+        with suppress(Exception):
+            action = "Start" if state else "Stop"
+            service_name = "mice-piper.service"
+            print(f"{action} {service_name}")
+            subprocess.run(["systemctl", action.lower(), service_name], check=True)
 
     def on_m_action(self, event: PiperEvent) -> None:
         self.last_mouse_event = event
@@ -139,7 +150,7 @@ class MicePiper:
             if action:
                 if device_name not in self.action_map:
                     self.action_map[device_name] = {}
-                self.action_map[device_name][m_event.button_id] = action
+                self.action_map[device_name][str(m_event.button_id)] = action
                 print(f"Assigned '{action}' to {m_event.button_id}-{m_event.button_name} mouse button")
 
 
