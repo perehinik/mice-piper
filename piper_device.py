@@ -20,19 +20,16 @@ class PiperEvent:
 
 
 class DeviceWatcher(threading.Thread):
-    """A thread that monitors a single input device."""
-
-    def __init__(
-            self,
-            device: InputDevice,
-            callback: Callable[[PiperEvent], None],
-    ) -> None:
+    """
+    A thread that monitors a single input device.
+    """
+    def __init__(self, device: InputDevice, callback: Callable[[PiperEvent], None]) -> None:
         super().__init__(daemon=True)
         self.device: InputDevice = device
         self.callback: Callable[[PiperEvent], None] = callback
         self._stop_flag = threading.Event()
 
-    def run(self):
+    def run(self) -> None:
         print(f"[{self.device.path}] Started listening ({self.device.name})")
         try:
             for event in self.device.read_loop():
@@ -52,21 +49,21 @@ class DeviceWatcher(threading.Thread):
         except OSError as e:
             print(f"[{self.device.path}] stopped: {e}")
 
-    def stop(self):
+    def stop(self) -> None:
         self._stop_flag.set()
         with suppress(Exception):
             self.device.close()
 
     def __del__(self) -> None:
-        self.stop()
+        with suppress(Exception):
+            self.stop()
 
 
 class PiperMouse:
-    def __init__(self, callback: Callable[[PiperEvent], None],) -> None:
+    def __init__(self, callback: Callable[[PiperEvent], None]) -> None:
         self.watchers: List[DeviceWatcher] = []
         self.devices: List[InputDevice] = []
         self.callback = callback
-
         self._initialise_devices()
 
     def _initialise_devices(self) -> None:
@@ -173,9 +170,11 @@ class PiperKeyboard:
         result = []
         for ch in text:
             if ch.isalpha():
+                alpha_key = getattr(ecodes, f"KEY_{ch.upper()}")
                 if ch.isupper():
-                    result.append(ecodes.KEY_LEFTSHIFT)
-                result.append(getattr(ecodes, f"KEY_{ch.upper()}"))
+                    result.append((ecodes.KEY_LEFTSHIFT, alpha_key))
+                else:
+                    result.append(alpha_key)
             elif ch.isdigit():
                 result.append(getattr(ecodes, f"KEY_{ch}"))
             elif ch in mapping:
@@ -186,5 +185,6 @@ class PiperKeyboard:
 
     def __del__(self) -> None:
         for w in self.watchers:
-            w.stop()
+            with suppress(Exception):
+                w.stop()
         print("All keyboard watchers stopped.")

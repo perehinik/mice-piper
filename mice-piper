@@ -2,6 +2,11 @@
 APP_DIR="/lib/mice-piper"
 SCRIPT_NAME="mice-piper.py"
 
+if [ "$EUID" -ne 0 ]; then
+  echo "❌ This script must be run as root (use sudo)." >&2
+  exit 1
+fi
+
 # Get the absolute path of the directory containing this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "$SCRIPT_DIR"

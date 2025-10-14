@@ -3,10 +3,10 @@
 import argparse
 import json
 import os
+import subprocess
 import time
 from contextlib import suppress
 from typing import Optional, Dict
-import subprocess
 
 from evdev import ecodes
 
@@ -18,8 +18,8 @@ class MicePiper:
     config_dir = "/etc/mice-piper"
     config_name = "config.json"
     def __init__(self, config_mode: bool = False) -> None:
-        # {<device_name>: {<button_id> : <action>}}
-        self.action_map: Dict[str, Dict[str, str]] = {}
+        # {<device_name>: {<button_id> : {"name":<action_name>, "data":<action_data>}}}
+        self.action_map: Dict[str, Dict[str, PiperAction]] = {}
         self.config_mode = config_mode
         self.running = True
 
@@ -48,7 +48,7 @@ class MicePiper:
     def on_m_action(self, event: PiperEvent) -> None:
         self.last_mouse_event = event
         if self.last_action and self.last_action.cleanup:
-            self.last_action.cleanup(self.keyboard, event)
+            self.last_action.cleanup(self.keyboard, event, None)
             self.last_action = None
         if not self.config_mode:
             if event.device.name not in self.action_map:
@@ -60,17 +60,15 @@ class MicePiper:
                 button_id = str(event.button_id)
             else:
                 return
-            action_str = self.action_map[event.device.name][button_id]
-            if action_str not in piper_actions:
-                return
-            action = piper_actions[action_str]
-            action.run(self.keyboard, event)
-            self.last_action = action
+            action = self.action_map[event.device.name][button_id]
+            if action.run:
+                action.run(self.keyboard, event, action.data)
+                self.last_action = action
 
-    def on_k_action(self, event: PiperEvent):
+    def on_k_action(self, event: PiperEvent) -> None:
         try:
             if self.last_action is not None and self.last_action.cleanup is not None:
-                self.last_action.cleanup(self.keyboard, None)
+                self.last_action.cleanup(self.keyboard, None, None)
                 self.last_action = None
             if self.config_mode and event.pressed:
                 self.last_key_event = event
@@ -81,8 +79,10 @@ class MicePiper:
                     self.save_config()
                     print("Configuration saved")
                 elif event.button_id == ecodes.KEY_V:
-                    for m_key, action in self.action_map.items():
-                        print(f"{m_key} : {action}")
+                    for device, button_dict in self.action_map.items():
+                        print(f"<> {device}")
+                        for button_id, action in button_dict.items():
+                            print(f"    {button_id} -> {action.name}, data:{action.data}")
         except AttributeError:
             pass
 
@@ -100,15 +100,37 @@ class MicePiper:
 
         # Optional: sanity check structure
         if config and "action_map" in config:
-            self.action_map = config["action_map"]
+            for device, buttons_dict in config["action_map"].items():
+                if device not in self.action_map:
+                    self.action_map[device] = {}
+                for button_id, action_dict in buttons_dict.items():
+                    try:
+                        action = PiperAction(name=action_dict["name"])
+                        if "data" in action_dict:
+                            action.data = action_dict["data"]
+                        if action.name not in piper_actions:
+                            raise ValueError(f"Wrong action name: {action.name}")
+                        action.run = piper_actions[action.name].run
+                        action.cleanup = piper_actions[action.name].cleanup
+                        self.action_map[device][button_id] = action
+                    except Exception as e:
+                        print(f"Error while reading action config: {e}")
 
     def save_config(self) -> None:
-        config = {"action_map": self.action_map}
+        config = {}
+        for device, buttons_dict in self.action_map.items():
+            config[device] = {}
+            for button_id, action in buttons_dict.items():
+                action_dict = {"name": action.name}
+                if action.data:
+                    action_dict["data"] = action.data
+                config[device][button_id] = action_dict
+
         with open(os.path.join(self.config_dir, self.config_name), "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2)
+            json.dump({"action_map": config}, f, indent=2)
 
     @staticmethod
-    def get_action_config() -> Optional[str]:
+    def get_action_config() -> Optional[PiperAction]:
         print("Select action:")
         for idx, act in enumerate(piper_actions.keys(), start=1):
             print(f"  {idx}. {act}")
@@ -119,10 +141,21 @@ class MicePiper:
             if choice == 'C':
                 print("Canceled.")
                 return
-            elif choice.isdigit() and 1 <= int(choice) <= len(piper_actions.keys()):
-                return list(piper_actions.keys())[int(choice) - 1]
+            action_name = None
+            if choice.isdigit() and 1 <= int(choice) <= len(piper_actions.keys()):
+                action_name = list(piper_actions.keys())[int(choice) - 1]
             else:
                 print("Invalid choice. Try again.")
+                continue
+            base_action = piper_actions[action_name]
+            action = PiperAction(name=action_name, run=base_action.run, cleanup=base_action.cleanup)
+            if action_name.lower() == "type custom text":
+                text = input("Enter text (or 'C' to cancel): ").strip()
+                if text == 'C' or text == 'c':
+                    print("Canceled.")
+                    return None
+                action.data["text"] = text
+            return action
 
     def configure(self) -> None:
         while True:
@@ -146,12 +179,12 @@ class MicePiper:
 
             print(f"\nYou pressed: {m_event.button_id}-{m_event.button_name} button.")
             device_name = m_event.device.name
-            action = self.get_action_config()
+            action: Optional[PiperAction] = self.get_action_config()
             if action:
                 if device_name not in self.action_map:
                     self.action_map[device_name] = {}
                 self.action_map[device_name][str(m_event.button_id)] = action
-                print(f"Assigned '{action}' to {m_event.button_id}-{m_event.button_name} mouse button")
+                print(f"Assigned '{action.name}' to {m_event.button_id}-{m_event.button_name} mouse button")
 
 
 def parse_args() -> argparse.Namespace:
