@@ -16,6 +16,9 @@ set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
     "${CMAKE_SOURCE_DIR}/debian/postinst"
     "${CMAKE_SOURCE_DIR}/debian/prerm"
 )
+set(CPACK_DEBIAN_PACKAGE_DEPENDS
+    "python3 (>= 3.6), python3-evdev"
+)
 set(CPACK_PACKAGE_HOMEPAGE "https://github.com/perehinik/mice-piper")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_CHANGELOG "${CMAKE_SOURCE_DIR}/CHANGELOG.md")
@@ -28,11 +31,6 @@ set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
 " - Optional systemd auto-start on Debian systems\n"
 )
 
-install(
-    DIRECTORY mp-lib/
-    DESTINATION "lib/mice-piper/"
-    PATTERN "__pycache__" EXCLUDE
-)
 install(
     FILES
         mice-piper.py
